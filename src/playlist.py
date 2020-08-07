@@ -17,12 +17,26 @@ if img is None:
 
 src = img.copy()
 
+# --- color_equalize ---
+
+src_ycrcb = cv2.cvtColor(src, cv2.COLOR_BGR2YCrCb)
+
+ycrcb_planes = cv2.split(src_ycrcb)
+
+ycrcb_planes[0] = cv2.equalizeHist(ycrcb_planes[0])
+
+equalize_ycrcb = cv2.merge(ycrcb_planes)
+
+equalize = cv2.cvtColor(equalize_ycrcb, cv2.COLOR_YCrCb2BGR)
+
+cv2.imwrite(dst_dir + 'equalize.jpg', equalize)
+
 # src = cv2.bilateralFilter(src, -1, 10, 5)
-src = cv2.medianBlur(src, 7)
+blurred = cv2.medianBlur(equalize, 7)
 
 # --- inrange_hue ---
 
-src_hsv = cv2.cvtColor(src, cv2.COLOR_BGR2HSV)
+src_hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
 h, s, v = cv2.split(src_hsv)
 
@@ -41,14 +55,14 @@ cv2.imwrite(dst_dir + 'mask.jpg', mask)
 
 # --- Pre-Processing: Blurring ---
 
-blurred = cv2.blur(mask, (3, 3))
-cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
+# blurred = cv2.blur(mask, (3, 3))
+# cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
 
 # --- Edge Detection ---
 
 # grayscale = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
 
-edge = cv2.Canny(blurred, 50, 150)
+edge = cv2.Canny(mask, 50, 150)
 cv2.imwrite(dst_dir + 'edge.jpg', edge)
 
 # --- Find Contours ---
