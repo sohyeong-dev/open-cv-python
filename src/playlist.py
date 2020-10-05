@@ -12,7 +12,7 @@ LIMIT_PX = 1024
 LIMIT_BYTE = 1024*1024  # 1MB
 LIMIT_BOX = 40
 
-name = "flo"
+name = "temp"
 ext = ".jpg"
 
 img_dir = "/workspace/_python/open-cv-python/img/"
@@ -96,6 +96,9 @@ if mask[int(height / 2), 0] == 0:
 kernel = np.ones((5, 5), np.uint8)
 mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
+# 침식 후 팽창 - 앨범 이미지에 배경색과 같은 색이 있을 경우 대비
+mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
 cv2.imwrite(dst_dir + 'mask.jpg', mask)
 
 # --- Pre-Processing: Blurring ---
@@ -139,7 +142,13 @@ for line in lines:
                         cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
 temp_x.sort()
-album_w = abs(temp_x[0] - temp_x[1])
+first = temp_x[0]
+for x in temp_x[1:]:
+    if x - first > 3:
+        second = x
+        break
+album_w = abs(first - second)
+print(album_w)
 
 cv2.imwrite(dst_dir + 'lines.jpg', dst)
 
@@ -171,15 +180,15 @@ for contour in contours:
 
     x, y, w, h = cv2.boundingRect(contour)
     # if w / h > 0.8 and w / h < 1.2 and w > 55:
-    if x > temp_x[0] - 3 and x < temp_x[1] + 3 and h > album_w - 3:    # 6
+    if x > first - 3 and x < second + 3 and h > album_w - 3:    # 6
         temp_y.append(y)
         # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
-        cv2.rectangle(dst, (temp_x[0], y), (temp_x[1], y+h), (0, 0, 255), 2)
+        cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
         # cv2.putText(dst, str(w), (x, y),
         #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
-        roi = img[y:y+h, temp_x[0]:temp_x[1]]
+        roi = img[y:y+h, first:second]
         cv2.imwrite(dst_dir + 'albums/' + str(cnt).zfill(2) + '.jpg', roi)
-        roi = img[y:y+h, temp_x[1]:]
+        roi = img[y:y+h, second:]
         cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
         cnt += 1
 
@@ -190,7 +199,7 @@ cv2.imwrite(dst_dir + 'contours.jpg', dst)
 # --- 문자 영역 ---
 
 ocr_img = img.copy()
-roi = img[temp_y[0]:temp_y[len(temp_y) - 1] + album_w, temp_x[1]:width]
+roi = img[temp_y[0]:temp_y[len(temp_y) - 1] + album_w, second:width]
 # ocr_img[temp_y[0]:temp_y[len(temp_y) - 1] + album_w, 0:width-temp_x[1]] = roi
 
 cv2.imwrite(dst_dir + 'ocr_img.jpg', roi)
