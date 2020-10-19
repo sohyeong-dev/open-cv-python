@@ -143,56 +143,60 @@ for line in lines:
                         cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
 temp_x.sort()
-first = temp_x[0]
-for x in temp_x[1:]:
-    if x - first > 3:
-        second = x
-        break
-album_w = abs(first - second)
-print(album_w)
-
-cv2.imwrite(dst_dir + 'lines.jpg', dst)
-
-dst = src.copy()
-
-minLineLength = 100
-maxLineGap = 0
-
-lines = cv2.HoughLinesP(edge, 1, np.pi/360, 100, minLineLength, maxLineGap)
-for line in lines:
-    for x1, y1, x2, y2 in line:
-        cv2.line(dst, (x1, y1), (x2, y2), (0, 0, 255), 3)
-
-cv2.imwrite(dst_dir + 'linesP.jpg', dst)
-
-# --- Find Contours ---    5
-
-contours, _ = cv2.findContours(edge,
-                               cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-dst = src.copy()
-
 temp_y = []
+# --- 결과 없으면 다음 직선으로 반복 ---    b5
+while len(temp_y) == 0:
+    first = temp_x[0]
+    temp_x = temp_x[1:]
+    for x in temp_x:
+        if x - first > width / 100:
+            second = x
+            break
+    album_w = abs(first - second)
+    print(album_w)
 
-cnt = 1
+    cv2.imwrite(dst_dir + 'lines.jpg', dst)
 
-for contour in contours:
-    # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
+    dst = src.copy()
 
-    x, y, w, h = cv2.boundingRect(contour)
-    # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 5)
-    # if w / h > 0.8 and w / h < 1.2 and w > 55:
-    if x > first - 3 and abs(w - album_w) < width / 100 and abs(h - album_w) < width / 100:    # 6
-        temp_y.append(y)
-        # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
-        cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
-        # cv2.putText(dst, str(w), (x, y),
-        #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
-        roi = img[y:y+h, first:second]
-        cv2.imwrite(dst_dir + 'albums/' + str(cnt).zfill(2) + '.jpg', roi)
-        roi = img[y:y+h, second:]
-        cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
-        cnt += 1
+    minLineLength = 100
+    maxLineGap = 0
+
+    lines = cv2.HoughLinesP(edge, 1, np.pi/360, 100, minLineLength, maxLineGap)
+    for line in lines:
+        for x1, y1, x2, y2 in line:
+            cv2.line(dst, (x1, y1), (x2, y2), (0, 0, 255), 3)
+
+    cv2.imwrite(dst_dir + 'linesP.jpg', dst)
+
+    # --- Find Contours ---    5
+
+    contours, _ = cv2.findContours(edge,
+                                   cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    dst = src.copy()
+
+    temp_y = []
+
+    cnt = 1
+
+    for contour in contours:
+        # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
+
+        x, y, w, h = cv2.boundingRect(contour)
+        # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 5)
+        # if w / h > 0.8 and w / h < 1.2 and w > 55:
+        if x > first - 3 and abs(w - album_w) < width / 100 and abs(h - album_w) < width / 100:    # 6
+            temp_y.append(y)
+            # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
+            cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
+            # cv2.putText(dst, str(w), (x, y),
+            #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+            roi = img[y:y+h, first:second]
+            cv2.imwrite(dst_dir + 'albums/' + str(cnt).zfill(2) + '.jpg', roi)
+            roi = img[y:y+h, second:]
+            cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
+            cnt += 1
 
 temp_y.sort()
 
