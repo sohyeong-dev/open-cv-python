@@ -180,8 +180,9 @@ for contour in contours:
     # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
 
     x, y, w, h = cv2.boundingRect(contour)
+    # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 5)
     # if w / h > 0.8 and w / h < 1.2 and w > 55:
-    if x > first - 3 and x < second + 3 and h > album_w - 3:    # 6
+    if x > first - 3 and abs(w - album_w) < width / 100 and abs(h - album_w) < width / 100:    # 6
         temp_y.append(y)
         # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
         cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
