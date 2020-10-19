@@ -97,6 +97,7 @@ kernel = np.ones((5, 5), np.uint8)
 mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
 # 침식 후 팽창 - 앨범 이미지에 배경색과 같은 색이 있을 경우 대비
+kernel = np.ones((1, 5), np.uint8)
 mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
 cv2.imwrite(dst_dir + 'mask.jpg', mask)
