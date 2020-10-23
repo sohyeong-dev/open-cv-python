@@ -12,7 +12,7 @@ LIMIT_PX = 1024
 LIMIT_BYTE = 1024*1024  # 1MB
 LIMIT_BOX = 40
 
-name = "temp"
+name = "bug-4"
 ext = ".jpg"
 
 img_dir = "/workspace/_python/open-cv-python/img/"
@@ -92,15 +92,17 @@ if mask[int(height / 2), 0] == 0:
             img = img[:, idx + 2:]
             break
 
+cv2.imwrite(dst_dir + 'mask-ori.jpg', mask)
+
 # 팽창 후 침식    2
 kernel = np.ones((5, 5), np.uint8)
-mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+blurred = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
 # 침식 후 팽창 - 앨범 이미지에 배경색과 같은 색이 있을 경우 대비
 kernel = np.ones((1, 5), np.uint8)
-mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+blurred = cv2.morphologyEx(blurred, cv2.MORPH_OPEN, kernel)
 
-cv2.imwrite(dst_dir + 'mask.jpg', mask)
+cv2.imwrite(dst_dir + 'mask.jpg', blurred)
 
 # --- Pre-Processing: Blurring ---
 
@@ -113,7 +115,7 @@ cv2.imwrite(dst_dir + 'mask.jpg', mask)
 
 # grayscale = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
 
-edge = cv2.Canny(mask, 50, 150, apertureSize=3)
+edge = cv2.Canny(blurred, 50, 150, apertureSize=3)
 cv2.imwrite(dst_dir + 'edge.jpg', edge)
 
 # --- Find Rectangle ---    4
@@ -198,9 +200,44 @@ while len(temp_y) == 0:
             cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
             cnt += 1
 
+    # --- 앨범 이미지에 배경색과 같은 색이 있을 경우 대비 ---
+
+    edge2 = cv2.Canny(mask, 50, 150, apertureSize=3)
+    
+    contours, _ = cv2.findContours(edge2,
+                                   cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for contour in contours:
+        # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
+
+        x, y, w, h = cv2.boundingRect(contour)
+        is_added = False
+        # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 5)
+        # if w / h > 0.8 and w / h < 1.2 and w > 55:
+        if x > first - 3 and abs(w - album_w) < width / 100 and abs(h - album_w) < width / 100:    # 6
+            # --- 이미 추가됐는지 확인 ---
+            for t in temp_y:
+                if abs(y - t) < album_w:
+                    is_added = True
+                    break
+
+            # --- 없으면 추가 ---
+            if is_added == False:
+                # temp_y.append(y)
+                # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
+                # cv2.putText(dst, str(w), (x, y),
+                #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+                roi = img[y:y+h, first:second]
+                cv2.imwrite(dst_dir + 'albums/' + str(cnt).zfill(2) + '.jpg', roi)
+                roi = img[y:y+h, second:]
+                cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
+                cnt += 1
+
 temp_y.sort()
 
 cv2.imwrite(dst_dir + 'contours.jpg', dst)
+print(cnt - 1)
 
 # --- 문자 영역 ---
 
