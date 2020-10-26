@@ -1,8 +1,5 @@
 # -*- coding:utf-8 -*-
 
-import json
-
-import requests
 import sys
 import numpy as np
 import cv2
@@ -12,7 +9,7 @@ LIMIT_PX = 1024
 LIMIT_BYTE = 1024*1024  # 1MB
 LIMIT_BOX = 40
 
-name = "bug-4"
+name = "black"
 ext = ".jpg"
 
 img_dir = "/workspace/_python/open-cv-python/img/"
@@ -34,33 +31,15 @@ if img is None:
 height, width, _ = img.shape
 print(height, width)
 
+# 오차 범위
+MOE = width / 100
+
 # if LIMIT_PX < height or LIMIT_PX < width:
 #     ratio = float(LIMIT_PX) / max(height, width)
 #     img = cv2.resize(img, None, fx=ratio, fy=ratio)
 #     height, width, _ = height, width, _ = img.shape
 
 src = img.copy()
-
-# --- color_equalize ---
-
-src_ycrcb = cv2.cvtColor(src, cv2.COLOR_BGR2YCrCb)
-
-ycrcb_planes = cv2.split(src_ycrcb)
-
-ycrcb_planes[0] = cv2.equalizeHist(ycrcb_planes[0])
-
-equalize_ycrcb = cv2.merge(ycrcb_planes)
-
-equalize = cv2.cvtColor(equalize_ycrcb, cv2.COLOR_YCrCb2BGR)
-
-cv2.imwrite(dst_dir + 'equalize.jpg', equalize)
-
-# blurred = cv2.medianBlur(equalize, 7)
-# blurred = cv2.blur(src, (7, 7))
-# GaussianBlur
-# blurred = cv2.GaussianBlur(src, (7, 7), 0)
-# blurred = cv2.bilateralFilter(src, -1, 10, 5)
-# cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
 
 # --- inrange_hue ---    1
 
@@ -92,24 +71,17 @@ if mask[int(height / 2), 0] == 0:
             img = img[:, idx + 2:]
             break
 
-cv2.imwrite(dst_dir + 'mask-ori.jpg', mask)
+cv2.imwrite(dst_dir + 'ori-mask.jpg', mask)
 
 # 팽창 후 침식    2
 kernel = np.ones((5, 5), np.uint8)
 blurred = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
 # 침식 후 팽창 - 앨범 이미지에 배경색과 같은 색이 있을 경우 대비
-kernel = np.ones((1, 5), np.uint8)
+kernel = np.ones((3, 5), np.uint8)
 blurred = cv2.morphologyEx(blurred, cv2.MORPH_OPEN, kernel)
 
 cv2.imwrite(dst_dir + 'mask.jpg', blurred)
-
-# --- Pre-Processing: Blurring ---
-
-# blurred = cv2.blur(mask, (3, 3))
-# GaussianBlur
-# blurred = cv2.GaussianBlur(mask, (5, 5), 0)
-# cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
 
 # --- Edge Detection ---    3
 
@@ -146,30 +118,19 @@ for line in lines:
 
 temp_x.sort()
 temp_y = []
+temp_h = []
 # --- 결과 없으면 다음 직선으로 반복 ---    b5
-while len(temp_y) == 0:
+while len(temp_y) == 0 and len(temp_x) > 1:
     first = temp_x[0]
     temp_x = temp_x[1:]
     for x in temp_x:
-        if x - first > width / 100:
+        if x - first > MOE:
             second = x
             break
     album_w = abs(first - second)
     print(album_w)
 
     cv2.imwrite(dst_dir + 'lines.jpg', dst)
-
-    dst = src.copy()
-
-    minLineLength = 100
-    maxLineGap = 0
-
-    lines = cv2.HoughLinesP(edge, 1, np.pi/360, 100, minLineLength, maxLineGap)
-    for line in lines:
-        for x1, y1, x2, y2 in line:
-            cv2.line(dst, (x1, y1), (x2, y2), (0, 0, 255), 3)
-
-    cv2.imwrite(dst_dir + 'linesP.jpg', dst)
 
     # --- Find Contours ---    5
 
@@ -185,17 +146,22 @@ while len(temp_y) == 0:
     for contour in contours:
         # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
 
+        # --- 경계 사각형 찾기 ---
         x, y, w, h = cv2.boundingRect(contour)
         # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 5)
         # if w / h > 0.8 and w / h < 1.2 and w > 55:
-        if x > first - 3 and abs(w - album_w) < width / 100 and abs(h - album_w) < width / 100:    # 6
+        # --- 앨범 이미지 판단 조건 ---
+        if abs(x - first) < MOE and abs(w - album_w) < MOE and abs(h - album_w) < MOE:    # 6
             temp_y.append(y)
+            temp_h.append(y + h)
             # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
             cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
             # cv2.putText(dst, str(w), (x, y),
             #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+            # --- 앨범 이미지 영역 ---
             roi = img[y:y+h, first:second]
             cv2.imwrite(dst_dir + 'albums/' + str(cnt).zfill(2) + '.jpg', roi)
+            # --- 곡, 아티스트명 문자 영역 ---
             roi = img[y:y+h, second:]
             cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
             cnt += 1
@@ -203,10 +169,11 @@ while len(temp_y) == 0:
     # --- 앨범 이미지에 배경색과 같은 색이 있을 경우 대비 ---
 
     edge2 = cv2.Canny(mask, 50, 150, apertureSize=3)
-    
+    cv2.imwrite(dst_dir + 'ori-edge.jpg', edge2)
+
     contours, _ = cv2.findContours(edge2,
                                    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+
     for contour in contours:
         # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
 
@@ -214,7 +181,7 @@ while len(temp_y) == 0:
         is_added = False
         # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 5)
         # if w / h > 0.8 and w / h < 1.2 and w > 55:
-        if x > first - 3 and abs(w - album_w) < width / 100 and abs(h - album_w) < width / 100:    # 6
+        if abs(x - first) < MOE and abs(w - album_w) < MOE and abs(h - album_w) < MOE:    # 6
             # --- 이미 추가됐는지 확인 ---
             for t in temp_y:
                 if abs(y - t) < album_w:
@@ -222,8 +189,9 @@ while len(temp_y) == 0:
                     break
 
             # --- 없으면 추가 ---
-            if is_added == False:
-                # temp_y.append(y)
+            if not is_added:
+                temp_y.append(y)
+                temp_h.append(y + h)
                 # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
                 cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
                 # cv2.putText(dst, str(w), (x, y),
@@ -234,49 +202,26 @@ while len(temp_y) == 0:
                 cv2.imwrite(dst_dir + 'right-boxes/' + str(cnt).zfill(2) + '.jpg', roi)
                 cnt += 1
 
-temp_y.sort()
+if len(temp_y):
+    temp_y.sort()
+    temp_h.sort()
+
+    gap = -1
+
+    for idx, y in enumerate(temp_y[1:]):
+        if gap < 0 and y - temp_h[idx] < album_w:
+            gap = y - temp_h[idx]
+        if gap > 0:
+            if y - temp_h[idx] > album_w:
+                top = temp_h[idx] + gap
+                bottom = top + album_w
+                while True:
+                    cv2.rectangle(dst, (first, top), (second, bottom), (0, 0, 255), 2)
+                    if y - bottom > album_w:
+                        top = bottom + gap
+                        bottom = top + album_w
+                        continue
+                    break
 
 cv2.imwrite(dst_dir + 'contours.jpg', dst)
 print(cnt - 1)
-
-# --- 문자 영역 ---
-
-ocr_img = img.copy()
-roi = img[temp_y[0]:temp_y[len(temp_y) - 1] + album_w, second:width]
-# ocr_img[temp_y[0]:temp_y[len(temp_y) - 1] + album_w, 0:width-temp_x[1]] = roi
-
-cv2.imwrite(dst_dir + 'ocr_img.jpg', roi)
-
-exit()
-
-# --- kakao ocr detect ---
-
-appkey = ""
-
-API_URL = 'https://kapi.kakao.com/v1/vision/text/detect'
-
-headers = {'Authorization': 'KakaoAK {}'.format(appkey)}
-
-jpeg_image = cv2.imencode(".jpg", img)[1]
-data = jpeg_image.tobytes()
-
-output = requests.post(API_URL, headers=headers, files={"file": data}).json()
-
-boxes = output["result"]["boxes"]
-boxes = boxes[:min(len(boxes), LIMIT_BOX)]
-
-# --- kakao ocr recognize ---
-
-appkey = ''
-
-API_URL = 'https://kapi.kakao.com/v1/vision/text/recognize'
-
-headers = {'Authorization': 'KakaoAK {}'.format(appkey)}
-
-jpeg_image = cv2.imencode(".jpg", img)[1]
-data = jpeg_image.tobytes()
-
-output = requests.post(API_URL, headers=headers, files={"file": data},
-                       data={"boxes": json.dumps(boxes)}).json()
-print("[recognize] output:\n{}\n".format(json.dumps(output, sort_keys=True,
-                                                    indent=2)))
