@@ -61,6 +61,17 @@ mode = np.uint8([h_mode, s_mode, v_mode])
 
 mask = cv2.inRange(src_hsv, mode, mode)
 
+if len(h_counter) > 1 and len(s_counter) > 1 and len(v_counter) > 1:
+    h_mode = h_counter.most_common(2)[1][0]
+    s_mode = s_counter.most_common(2)[1][0]
+    v_mode = v_counter.most_common(2)[1][0]
+
+    mode = np.uint8([h_mode, s_mode, v_mode])
+
+    mask2 = cv2.inRange(src_hsv, mode, mode)
+
+    mask = cv2.bitwise_or(mask, mask2)
+
 # --- 자르기 ---
 
 if mask[int(height / 2), 0] == 0:
