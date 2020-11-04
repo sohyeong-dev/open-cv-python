@@ -29,12 +29,12 @@ cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
 
 # --- Edge Detection ---
 
-grayscale = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+grayscale = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
 edge = cv2.Canny(grayscale, 50, 150, apertureSize=3)
 
 # 팽창 후 침식
-kernel = np.ones((3, 3), np.uint8)
+kernel = np.ones((7, 7), np.uint8)
 edge = cv2.morphologyEx(edge, cv2.MORPH_CLOSE, kernel)
 
 cv2.imwrite(dst_dir + 'edge.jpg', edge)
