@@ -222,6 +222,9 @@ if len(temp_y):
     for idx, y in enumerate(temp_y[1:]):
         if gap < 0 and y - temp_h[idx] < album_w:
             gap = y - temp_h[idx]
+            break
+
+    for idx, y in enumerate(temp_y[1:]):
         if gap > 0:
             if y - temp_h[idx] > album_w:
                 top = temp_h[idx] + gap
