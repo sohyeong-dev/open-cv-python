@@ -93,33 +93,36 @@ temp_y = []
 temp_h = []
 
 first = temp_x[0]
-temp_x = temp_x[1:]
-for x in temp_x:
-    if x - first > MOE:
-        second = x
-        break
-album_w = abs(first - second)
-print(album_w)
+while len(temp_y) == 0 and len(temp_x) > 1:
+    temp_x = temp_x[1:]
+    for x in temp_x:
+        if x - first > MOE:
+            second = x
+            break
+    album_w = abs(first - second)
+    print(album_w)
 
-cv2.line(dst, (first, 0), (first, height), (0, 255, 0), 2)
-cv2.line(dst, (second, 0), (second, height), (0, 255, 0), 2)
+    cv2.line(dst, (first, 0), (first, height), (0, 255, 0), 2)
+    cv2.line(dst, (second, 0), (second, height), (0, 255, 0), 2)
 
-cv2.imwrite(dst_dir + 'lines.jpg', dst)
+    cv2.imwrite(dst_dir + 'lines.jpg', dst)
 
-# --- Find Albums ---
+    # --- Find Albums ---
 
-dst = src.copy()
+    dst = src.copy()
 
-for rect in rects:
-    # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
+    for rect in rects:
+        # cv2.drawContours(dst, [contour], 0, [255, 0, 0], 2)
 
-    x, y, w, h = rect
-    if abs(x - first) < MOE and abs(w - album_w) < MOE and abs(h - album_w) < MOE:
-        temp_y.append(y)
-        temp_h.append(y + h)
-        cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
-        cv2.putText(dst, str(w), (x, y),
-                    cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+        x, y, w, h = rect
+        if abs(x - first) < MOE and abs(w - album_w) < MOE and abs(h - album_w) < MOE:
+            temp_y.append(y)
+            temp_h.append(y + h)
+            cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
+            cv2.putText(dst, str(w), (x, y),
+                        cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+
+# --- 중간에 누락된 앨범 추가 ---
 
 if len(temp_y):
     temp_y.sort()
