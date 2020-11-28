@@ -26,8 +26,8 @@ src = img.copy()
 # --- Pre-Processing: Blurring ---
 
 # blurred = cv2.blur(mask, (3, 3))
-blurred = cv2.bilateralFilter(src, -1, 10, 5)
-cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
+# blurred = cv2.bilateralFilter(src, -1, 10, 5)
+# cv2.imwrite(dst_dir + 'blurred.jpg', blurred)
 
 # --- Edge Detection ---
 
@@ -35,18 +35,20 @@ grayscale = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
 edge = cv2.Canny(grayscale, 50, 150, apertureSize=3)
 
+cv2.imwrite(dst_dir + 'ori-edge.jpg', edge)
+
 # 팽창 후 침식
 kernel = np.ones((7, 7), np.uint8)
-edge = cv2.morphologyEx(edge, cv2.MORPH_CLOSE, kernel)
+blurred = cv2.morphologyEx(edge, cv2.MORPH_CLOSE, kernel)
 
-cv2.imwrite(dst_dir + 'edge.jpg', edge)
+cv2.imwrite(dst_dir + 'edge.jpg', blurred)
 
 # --- Find Contours ---
 
-contours, _ = cv2.findContours(edge,
+contours, _ = cv2.findContours(blurred,
                                cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-dst = np.zeros((height, width, 1), dtype=np.uint8)
+rect_dst = np.zeros((height, width, 1), dtype=np.uint8)
 
 # --- 경계 사각형 찾기 ---
 
@@ -55,15 +57,15 @@ rects = []
 for contour in contours:
     x, y, w, h = cv2.boundingRect(contour)
     rects.append([x, y, w, h])
-    cv2.rectangle(dst, (x, y), (x+w, y+h), (255, 255, 255), 2)
+    cv2.rectangle(rect_dst, (x, y), (x+w, y+h), (255, 255, 255), 2)
 
-cv2.imwrite(dst_dir + 'rects.jpg', dst)
+cv2.imwrite(dst_dir + 'rects.jpg', rect_dst)
 
 # --- Find Lines ---
 
-lines = cv2.HoughLines(dst, 1, np.pi/180, 180)
+lines = cv2.HoughLines(rect_dst, 1, np.pi/180, 180)
 
-dst = src.copy()
+line_dst = src.copy()
 
 temp_x = []
 
@@ -81,9 +83,9 @@ for line in lines:
 
             temp_x.append(x1)
 
-            cv2.line(dst, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cv2.putText(dst, str(theta), (x0, y0),
-                        cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+            cv2.line(line_dst, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            # cv2.putText(line_dst, str(theta), (x0, y0),
+            #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
 temp_x.sort()
 
@@ -102,10 +104,10 @@ while len(temp_y) == 0 and len(temp_x) > 1:
     album_w = abs(first - second)
     print(album_w)
 
-    cv2.line(dst, (first, 0), (first, height), (0, 255, 0), 2)
-    cv2.line(dst, (second, 0), (second, height), (0, 255, 0), 2)
+    cv2.line(line_dst, (first, 0), (first, height), (0, 255, 0), 4)
+    cv2.line(line_dst, (second, 0), (second, height), (0, 255, 0), 4)
 
-    cv2.imwrite(dst_dir + 'lines.jpg', dst)
+    cv2.imwrite(dst_dir + 'lines.jpg', line_dst)
 
     # --- Find Albums ---
 
@@ -118,9 +120,9 @@ while len(temp_y) == 0 and len(temp_x) > 1:
         if abs(x - first) < MOE and abs(w - album_w) < MOE and abs(h - album_w) < MOE:
             temp_y.append(y)
             temp_h.append(y + h)
-            cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
-            cv2.putText(dst, str(w), (x, y),
-                        cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+            cv2.rectangle(dst, (first, y), (second, y+h), (255, 0, 0), 4)
+            # cv2.putText(dst, str(w), (x, y),
+            #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
 # --- 중간에 누락된 앨범 추가 ---
 
@@ -141,7 +143,7 @@ if len(temp_y):
                 top = temp_h[idx] + gap
                 bottom = top + album_w
                 while True:
-                    cv2.rectangle(dst, (first, top), (second, bottom), (0, 0, 255), 2)
+                    cv2.rectangle(dst, (first, top), (second, bottom), (255, 0, 0), 4)
                     if y - bottom > album_w:
                         top = bottom + gap
                         bottom = top + album_w
@@ -149,3 +151,10 @@ if len(temp_y):
                     break
 
 cv2.imwrite(dst_dir + 'contours.jpg', dst)
+
+edge = cv2.cvtColor(edge, cv2.COLOR_GRAY2BGR)
+blurred = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
+rect_dst = cv2.cvtColor(rect_dst, cv2.COLOR_GRAY2BGR)
+
+dst = np.concatenate((img, edge, blurred, rect_dst, line_dst, dst), axis=1)
+cv2.imwrite(dst_dir + 'temp.jpg', dst)

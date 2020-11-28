@@ -9,8 +9,8 @@ LIMIT_PX = 1024
 LIMIT_BYTE = 1024*1024  # 1MB
 LIMIT_BOX = 40
 
-name = "black"
-ext = ".jpg"
+name = "flo-3"
+ext = ".png"
 
 img_dir = "/workspace/_python/open-cv-python/img/"
 # dst_dir = img_dir + "playlist/"
@@ -52,6 +52,13 @@ half = int(width / 2)
 h_counter = Counter(h[:, half])
 s_counter = Counter(s[:, half])
 v_counter = Counter(v[:, half])
+
+print(h_counter.most_common(1)[0][1], s_counter.most_common(1)[0][1], v_counter.most_common(1)[0][1])
+# sys.exit()
+
+if h_counter.most_common(1)[0][1] < int(height / 2):
+    print('melon')
+    sys.exit()
 
 h_mode = h_counter.most_common(1)[0][0]
 s_mode = s_counter.most_common(1)[0][0]
@@ -103,7 +110,7 @@ cv2.imwrite(dst_dir + 'edge.jpg', edge)
 
 # --- Find Rectangle ---    4
 
-dst = src.copy()
+line_dst = src.copy()
 
 lines = cv2.HoughLines(edge, 1, np.pi/180, 180)
 
@@ -123,9 +130,11 @@ for line in lines:
 
             temp_x.append(x1)
 
-            cv2.line(dst, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cv2.putText(dst, str(theta), (x0, y0),
-                        cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+            cv2.line(line_dst, (x1, y1), (x2, y2), (0, 255, 0), 4)
+            # cv2.putText(line_dst, str(theta), (x0, y0),
+            #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
+
+cv2.imwrite(dst_dir + 'lines.jpg', line_dst)
 
 temp_x.sort()
 temp_y = []
@@ -140,8 +149,6 @@ while len(temp_y) == 0 and len(temp_x) > 1:
             break
     album_w = abs(first - second)
     print(album_w)
-
-    cv2.imwrite(dst_dir + 'lines.jpg', dst)
 
     # --- Find Contours ---    5
 
@@ -166,7 +173,7 @@ while len(temp_y) == 0 and len(temp_x) > 1:
             temp_y.append(y)
             temp_h.append(y + h)
             # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
-            cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
+            cv2.rectangle(dst, (first, y), (second, y+h), (255, 0, 0), 4)
             # cv2.putText(dst, str(w), (x, y),
             #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
             # --- 앨범 이미지 영역 ---
@@ -204,7 +211,7 @@ while len(temp_y) == 0 and len(temp_x) > 1:
                 temp_y.append(y)
                 temp_h.append(y + h)
                 # cv2.rectangle(dst, (x, y), (x+w, y+h), (0, 0, 255), 2)
-                cv2.rectangle(dst, (first, y), (second, y+h), (0, 0, 255), 2)
+                cv2.rectangle(dst, (first, y), (second, y+h), (255, 0, 0), 4)
                 # cv2.putText(dst, str(w), (x, y),
                 #             cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
                 roi = img[y:y+h, first:second]
@@ -230,7 +237,7 @@ if len(temp_y):
                 top = temp_h[idx] + gap
                 bottom = top + album_w
                 while True:
-                    cv2.rectangle(dst, (first, top), (second, bottom), (0, 0, 255), 2)
+                    cv2.rectangle(dst, (first, top), (second, bottom), (255, 0, 0), 4)
                     if y - bottom > album_w:
                         top = bottom + gap
                         bottom = top + album_w
@@ -239,3 +246,10 @@ if len(temp_y):
 
 cv2.imwrite(dst_dir + 'contours.jpg', dst)
 print(cnt - 1)
+
+mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+blurred = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
+edge = cv2.cvtColor(edge, cv2.COLOR_GRAY2BGR)
+
+dst = np.concatenate((img, mask, blurred, edge, line_dst, dst), axis=1)
+cv2.imwrite(dst_dir + 'temp.jpg', dst)
