@@ -9,8 +9,8 @@ LIMIT_PX = 1024
 LIMIT_BYTE = 1024*1024  # 1MB
 LIMIT_BOX = 40
 
-name = "flo-3"
-ext = ".png"
+name = "melon-1"
+ext = ".jpg"
 
 img_dir = "/workspace/_python/open-cv-python/img/"
 # dst_dir = img_dir + "playlist/"
@@ -56,7 +56,7 @@ v_counter = Counter(v[:, half])
 print(h_counter.most_common(1)[0][1], s_counter.most_common(1)[0][1], v_counter.most_common(1)[0][1])
 # sys.exit()
 
-if h_counter.most_common(1)[0][1] < int(height / 2):
+if h_counter.most_common(1)[0][1] < int(height / 2) or s_counter.most_common(1)[0][1] < int(height / 2) or v_counter.most_common(1)[0][1] < int(height / 2):
     print('melon')
     sys.exit()
 
